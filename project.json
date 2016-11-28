@@ -1,0 +1,9 @@
+{
+  "name": "heroes",
+  "description": "heroes api",
+  "memory": 128,
+  "timeout": 5,
+  "runtime": "nodejs4.3",
+  "role": "arn:aws:iam::680708571460:role/heroes_lambda_function",
+  "environment": {}
+}
