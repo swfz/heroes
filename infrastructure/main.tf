@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" { }
+
 variable "access_key" {
 }
 variable "secret_key" {
@@ -21,7 +23,7 @@ provider "aws" {
 }
 
 resource "aws_api_gateway_rest_api" "heroes" {
-  name = "Heroes"
+  name = "heroes"
   description = "This is the Heroes API"
 }
 
@@ -32,7 +34,7 @@ resource "aws_api_gateway_resource" "heroes-api" {
 }
 
 output "lambda functions heroes search" {
-  value = "${apex_function_heroes_search}"
+  value = "${apex_function_search}"
 }
 
 # get
@@ -46,7 +48,7 @@ resource "aws_api_gateway_integration" "heroes-api-get-integration" {
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
   resource_id = "${aws_api_gateway_resource.heroes-api.id}"
   http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
-  type = "AWS_PROXY"
+  type = "AWS"
   uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${lookup(var.lambda_heroes,"search")}/invocations"
   integration_http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
 }
@@ -62,6 +64,18 @@ resource "aws_api_gateway_integration_response" "heroes-api-get-integration-resp
   http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
   status_code = "${aws_api_gateway_method_response.heroes-api-get-method-response.status_code}"
 }
+
+resource "aws_lambda_permission" "heroes-with-apigateway" {
+  statement_id = "${aws_api_gateway_rest_api.heroes.name}"
+  action = "lambda:InvokeFunction"
+  function_name = "heroes_search"
+  principal = "apigateway.amazonaws.com"
+  source_arn = "arn:aws:execute-api:ap-northeast-1:680708571460:em3fzfvp1j/prod/GET/heroes"
+}
+
+#resource "aws_lambda_event_source_mapping" "heroes-search-event-source" {
+#}
+
 # put
 resource "aws_api_gateway_method" "heroes-api-put" {
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
@@ -100,7 +114,7 @@ resource "aws_api_gateway_deployment" "heroes-api-deploy" {
     "aws_api_gateway_method.heroes-api-delete"
   ]
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  stage_name = "sample"
+  stage_name = "prod"
 }
 
 resource "aws_dynamodb_table" "sample-dynamo-table" {

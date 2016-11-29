@@ -3,7 +3,7 @@ exports.handle = function(e, ctx, cb) {
   console.log('processing event: %j', e)
 
   var AWS = require('aws-sdk');
-  AWS.config.update({endpoint: 'http://192.168.30.96:8001', region: 'localhost'});
+  AWS.config.update({endpoint: 'dynamodb.ap-northeast-1.amazonaws.com', region: 'ap-northeast-1'});
   var doc = require('dynamodb-doc');
   var dynamo = new doc.DynamoDB();
 
@@ -27,4 +27,5 @@ exports.handle = function(e, ctx, cb) {
     dynamo.scan(params,pfunc);
   }
 
+  scanItems(e);
 }
