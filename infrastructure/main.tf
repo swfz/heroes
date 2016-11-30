@@ -7,12 +7,16 @@ variable "secret_key" {
 variable "region" {
   default = "ap-northeast-1"
 }
-variable "lambda_heroes" {
+variable "lambda_iam_role_name" {
+  # apex側で自動で生成されるrole名
+  default = "heroes_lambda_function"
+}
+variable "lambda_names" {
   type = "map"
   default = {
-    search = "arn:aws:lambda:ap-northeast-1:680708571460:function:heroes_search"
-    update = "arn:aws:lambda:ap-northeast-1:680708571460:function:heroes_update"
-    delete = "arn:aws:lambda:ap-northeast-1:680708571460:function:heroes_delete"
+    search = "heroes_search"
+    update = "heroes_update"
+    delete = "heroes_delete"
   }
 }
 
@@ -20,6 +24,12 @@ provider "aws" {
   access_key = "${var.access_key}"
   secret_key = "${var.secret_key}"
   region = "${var.region}"
+}
+
+resource "aws_iam_policy_attachment" "heroes-policy-1" {
+  name = "lambda_policy_dynamo_execution"
+  roles = [ "${var.lambda_iam_role_name}" ]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 }
 
 resource "aws_api_gateway_rest_api" "heroes" {
@@ -33,10 +43,6 @@ resource "aws_api_gateway_resource" "heroes-api" {
   path_part = "heroes"
 }
 
-output "lambda functions heroes search" {
-  value = "${apex_function_search}"
-}
-
 # get
 resource "aws_api_gateway_method" "heroes-api-get" {
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
@@ -48,8 +54,8 @@ resource "aws_api_gateway_integration" "heroes-api-get-integration" {
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
   resource_id = "${aws_api_gateway_resource.heroes-api.id}"
   http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
-  type = "AWS"
-  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${lookup(var.lambda_heroes,"search")}/invocations"
+  type = "AWS_PROXY"
+  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"search")}/invocations"
   integration_http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
 }
 resource "aws_api_gateway_method_response" "heroes-api-get-method-response" {
@@ -66,52 +72,49 @@ resource "aws_api_gateway_integration_response" "heroes-api-get-integration-resp
 }
 
 resource "aws_lambda_permission" "heroes-with-apigateway" {
-  statement_id = "${aws_api_gateway_rest_api.heroes.name}"
+  statement_id = "api-gateway-prod"
   action = "lambda:InvokeFunction"
   function_name = "heroes_search"
   principal = "apigateway.amazonaws.com"
-  source_arn = "arn:aws:execute-api:ap-northeast-1:680708571460:em3fzfvp1j/prod/GET/heroes"
+  source_arn = "arn:aws:execute-api:ap-northeast-1:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/GET/heroes"
 }
-
-#resource "aws_lambda_event_source_mapping" "heroes-search-event-source" {
-#}
 
 # put
-resource "aws_api_gateway_method" "heroes-api-put" {
-  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-  http_method = "PUT"
-  authorization = "NONE"
-}
-resource "aws_api_gateway_integration" "heroes-api-put-integration" {
-  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-  http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
-  type = "AWS_PROXY"
-  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${lookup(var.lambda_heroes,"update")}/invocations"
-  integration_http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
-}
-# delete
-resource "aws_api_gateway_method" "heroes-api-delete" {
-  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-  http_method = "DELETE"
-  authorization = "NONE"
-}
-resource "aws_api_gateway_integration" "heroes-api-delete-integration" {
-  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-  http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
-  type = "AWS_PROXY"
-  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${lookup(var.lambda_heroes,"delete")}/invocations"
-  integration_http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
-}
+#resource "aws_api_gateway_method" "heroes-api-put" {
+#  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+#  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+#  http_method = "PUT"
+#  authorization = "NONE"
+#}
+#resource "aws_api_gateway_integration" "heroes-api-put-integration" {
+#  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+#  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+#  http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
+#  type = "AWS_PROXY"
+#  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"update")}/invocations"
+#  integration_http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
+#}
+## delete
+#resource "aws_api_gateway_method" "heroes-api-delete" {
+#  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+#  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+#  http_method = "DELETE"
+#  authorization = "NONE"
+#}
+#resource "aws_api_gateway_integration" "heroes-api-delete-integration" {
+#  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+#  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+#  http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
+#  type = "AWS_PROXY"
+#  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"delete")}/invocations"
+#  integration_http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
+#}
 
 resource "aws_api_gateway_deployment" "heroes-api-deploy" {
   depends_on = [
     "aws_api_gateway_method.heroes-api-get",
-    "aws_api_gateway_method.heroes-api-put",
-    "aws_api_gateway_method.heroes-api-delete"
+#    "aws_api_gateway_method.heroes-api-put",
+#    "aws_api_gateway_method.heroes-api-delete"
   ]
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
   stage_name = "prod"
@@ -137,5 +140,3 @@ resource "aws_s3_bucket" "tf" {
   }
 }
 
-# TODO
-# sampleのS3配信

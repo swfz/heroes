@@ -13,13 +13,19 @@ exports.handle = function(e, ctx, cb) {
       }
       else {
           console.log(data);
-          cb(null, data);
+          var res = {
+            "statusCode": 200,
+            "headers": {},
+            "body": JSON.stringify({"hello":"world"})
+          };
+          cb(null, res);
+          // cb(null, data);
       }
   }
   console.dir(e);
 
   var scanParams = {
-    TableName: "heroes",
+    TableName: "SampleDynamoHeroes",
     Select: "ALL_ATTRIBUTES"
   };
 
@@ -27,5 +33,5 @@ exports.handle = function(e, ctx, cb) {
     dynamo.scan(params,pfunc);
   }
 
-  scanItems(e);
+  scanItems(scanParams);
 }
