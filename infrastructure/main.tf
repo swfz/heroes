@@ -71,12 +71,19 @@ resource "aws_api_gateway_integration_response" "heroes-api-get-integration-resp
   status_code = "${aws_api_gateway_method_response.heroes-api-get-method-response.status_code}"
 }
 
-resource "aws_lambda_permission" "heroes-with-apigateway" {
-  statement_id = "api-gateway-prod"
+resource "aws_lambda_permission" "heroes-with-apigateway-get" {
+  statement_id = "api-heroes-permission-get"
   action = "lambda:InvokeFunction"
   function_name = "heroes_search"
   principal = "apigateway.amazonaws.com"
-  source_arn = "arn:aws:execute-api:ap-northeast-1:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/GET/heroes"
+  source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/GET/heroes"
+}
+
+resource "aws_lambda_event_source_mapping" "heroes-get-mapping" {
+  event_source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/GET/heroes"
+  enabled = true
+  starting_position = "LATEST"
+  function_name = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"search")}"
 }
 
 # put
