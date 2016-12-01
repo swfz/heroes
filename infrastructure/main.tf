@@ -8,22 +8,21 @@ variable "region" {
   default = "ap-northeast-1"
 }
 variable "lambda_iam_role_name" {
-  # apex側で自動で生成されるrole名
-  default = "heroes_lambda_function"
 }
 variable "lambda_names" {
-  type = "map"
-  default = {
-    search = "heroes_search"
-    update = "heroes_update"
-    delete = "heroes_delete"
-  }
+  default = {}
 }
 
-provider "aws" {
-  access_key = "${var.access_key}"
-  secret_key = "${var.secret_key}"
-  region = "${var.region}"
+output "rolename" {
+  value = "${var.lambda_iam_role_name}"
+}
+
+output "tfvars-lookup" {
+  value = "lookup: ${lookup(var.lambda_names,"search")}"
+}
+
+output "tfvars" {
+  value = "brackets: ${var.lambda_names[search]}"
 }
 
 resource "aws_iam_policy_attachment" "heroes-policy-1" {
@@ -58,18 +57,6 @@ resource "aws_api_gateway_integration" "heroes-api-get-integration" {
   uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"search")}/invocations"
   integration_http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
 }
-resource "aws_api_gateway_method_response" "heroes-api-get-method-response" {
-  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-  http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
-  status_code = "200"
-}
-resource "aws_api_gateway_integration_response" "heroes-api-get-integration-response" {
-  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-  http_method = "${aws_api_gateway_method.heroes-api-get.http_method}"
-  status_code = "${aws_api_gateway_method_response.heroes-api-get-method-response.status_code}"
-}
 
 resource "aws_lambda_permission" "heroes-with-apigateway-get" {
   statement_id = "api-heroes-permission-get"
@@ -77,13 +64,6 @@ resource "aws_lambda_permission" "heroes-with-apigateway-get" {
   function_name = "heroes_search"
   principal = "apigateway.amazonaws.com"
   source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/GET/heroes"
-}
-
-resource "aws_lambda_event_source_mapping" "heroes-get-mapping" {
-  event_source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/GET/heroes"
-  enabled = true
-  starting_position = "LATEST"
-  function_name = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"search")}"
 }
 
 # put
@@ -101,26 +81,78 @@ resource "aws_lambda_event_source_mapping" "heroes-get-mapping" {
 #  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"update")}/invocations"
 #  integration_http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
 #}
+resource "aws_api_gateway_method" "heroes-api-put" {
+  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+  http_method = "PUT"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "heroes-api-put-integration" {
+  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+  http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
+  type = "AWS_PROXY"
+  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"update")}/invocations"
+  integration_http_method = "${aws_api_gateway_method.heroes-api-put.http_method}"
+}
+resource "aws_lambda_permission" "heroes-with-apigateway-put" {
+  statement_id = "api-heroes-permission-put"
+  action = "lambda:InvokeFunction"
+  function_name = "heroes_update"
+  principal = "apigateway.amazonaws.com"
+  source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/PUT/heroes"
+}
+# post
+resource "aws_api_gateway_method" "heroes-api-post" {
+  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+  http_method = "POST"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "heroes-api-post-integration" {
+  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+  http_method = "${aws_api_gateway_method.heroes-api-post.http_method}"
+  type = "AWS_PROXY"
+  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"update")}/invocations"
+  integration_http_method = "${aws_api_gateway_method.heroes-api-post.http_method}"
+}
+resource "aws_lambda_permission" "heroes-with-apigateway-post" {
+  statement_id = "api-heroes-permission-post"
+  action = "lambda:InvokeFunction"
+  function_name = "heroes_update"
+  principal = "apigateway.amazonaws.com"
+  source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/POST/heroes"
+}
+
 ## delete
-#resource "aws_api_gateway_method" "heroes-api-delete" {
-#  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-#  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-#  http_method = "DELETE"
-#  authorization = "NONE"
-#}
-#resource "aws_api_gateway_integration" "heroes-api-delete-integration" {
-#  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
-#  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
-#  http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
-#  type = "AWS_PROXY"
-#  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"delete")}/invocations"
-#  integration_http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
-#}
+resource "aws_api_gateway_method" "heroes-api-delete" {
+  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+  http_method = "DELETE"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "heroes-api-delete-integration" {
+  rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"
+  resource_id = "${aws_api_gateway_resource.heroes-api.id}"
+  http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
+  type = "AWS_PROXY"
+  uri = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${lookup(var.lambda_names,"update")}/invocations"
+  integration_http_method = "${aws_api_gateway_method.heroes-api-delete.http_method}"
+}
+resource "aws_lambda_permission" "heroes-with-apigateway-delete" {
+  statement_id = "api-heroes-permission-delete"
+  action = "lambda:InvokeFunction"
+  function_name = "heroes_update"
+  principal = "apigateway.amazonaws.com"
+  source_arn = "arn:aws:execute-api:${var.region}:${data.aws_caller_identity.current.account_id}:${aws_api_gateway_rest_api.heroes.id}/prod/DELETE/heroes"
+}
 
 resource "aws_api_gateway_deployment" "heroes-api-deploy" {
   depends_on = [
     "aws_api_gateway_method.heroes-api-get",
-#    "aws_api_gateway_method.heroes-api-put",
+    "aws_api_gateway_method.heroes-api-put",
+    "aws_api_gateway_method.heroes-api-post",
 #    "aws_api_gateway_method.heroes-api-delete"
   ]
   rest_api_id = "${aws_api_gateway_rest_api.heroes.id}"

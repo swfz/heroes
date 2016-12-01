@@ -8,19 +8,21 @@ exports.handle = function(e, ctx, cb) {
   var dynamo = new doc.DynamoDB();
 
   var pfunc = function(err, data) {
-      if (err) {
-          console.log(err, err.stack);
-      }
-      else {
-          console.log(data);
-          var res = {
-            "statusCode": 200,
-            "headers": {},
-            "body": JSON.stringify({"hello":"world"})
-          };
-          cb(null, res);
-          // cb(null, data);
-      }
+    if (err) {
+      console.log(err, err.stack);
+    }
+    else {
+      console.log(data);
+      var res = {
+        "statusCode": 200,
+        "headers": {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET,POST,HEAD,OPTIONS"
+        },
+        "body": JSON.stringify(data["Items"])
+      };
+      cb(null, res);
+    }
   }
   console.dir(e);
 

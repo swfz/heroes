@@ -1,2 +1,2 @@
 # credential
-./infrastructure/terraform.tfvars
+infrastructure/credentials.tfvars
