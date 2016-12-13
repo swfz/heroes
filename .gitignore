@@ -1,2 +1,3 @@
 # credential
 infrastructure/credentials.tfvars
+*.swp
